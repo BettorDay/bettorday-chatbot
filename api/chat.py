@@ -1088,6 +1088,110 @@ QUARTER_SCORING = {
 
 
 # ============================================
+# IMPLIED PROBABILITY CALCULATOR FUNCTIONS
+# ============================================
+
+def american_to_prob(odds):
+    """Convert American odds to implied probability."""
+    if odds < 0:
+        return abs(odds) / (abs(odds) + 100)
+    else:
+        return 100 / (odds + 100)
+
+def prob_to_american(prob):
+    """Convert probability to fair American odds."""
+    if prob <= 0:
+        return None
+    if prob >= 1:
+        return None
+    if prob >= 0.5:
+        return round(-100 * prob / (1 - prob))
+    else:
+        return round(100 * (1 - prob) / prob)
+
+def format_american_odds(odds):
+    """Format odds with + or - sign."""
+    if odds is None:
+        return "N/A"
+    return f"+{odds}" if odds > 0 else str(odds)
+
+def parse_player_stat(log, stat_type):
+    """Extract a specific stat from a player's game log."""
+    if stat_type == "pass_yds":
+        if 'pass' in log:
+            parts = log['pass'].split(',')
+            return int(parts[1].strip().replace(' yds', ''))
+    elif stat_type == "pass_tds":
+        if 'pass' in log:
+            parts = log['pass'].split(',')
+            return int(parts[2].strip().replace(' TD', ''))
+    elif stat_type == "pass_attempts":
+        if 'pass' in log:
+            comp_att = log['pass'].split(',')[0]
+            return int(comp_att.split('/')[1])
+    elif stat_type == "completions":
+        if 'pass' in log:
+            comp_att = log['pass'].split(',')[0]
+            return int(comp_att.split('/')[0])
+    elif stat_type == "interceptions":
+        if 'pass' in log:
+            parts = log['pass'].split(',')
+            return int(parts[3].strip().replace(' INT', ''))
+    elif stat_type == "rush_yds":
+        if 'rush' in log:
+            parts = log['rush'].split(',')
+            return int(parts[1].strip().replace(' yds', ''))
+    elif stat_type == "rush_att":
+        if 'rush' in log:
+            parts = log['rush'].split(',')
+            return int(parts[0].strip().replace(' att', ''))
+    elif stat_type == "receptions":
+        if 'rec' in log:
+            parts = log['rec'].split(',')
+            rec_part = parts[0].strip()
+            return int(rec_part.replace(' rec', ''))
+    elif stat_type == "rec_yds":
+        if 'rec' in log:
+            parts = log['rec'].split(',')
+            return int(parts[1].strip().replace(' yds', ''))
+    elif stat_type == "targets":
+        if 'rec' in log:
+            # Format: "8 rec, 124 yds, 0 TD (13 tgt)"
+            tgt_part = log['rec'].split('(')[1].replace(' tgt)', '').replace('tgt)', '')
+            return int(tgt_part)
+    return None
+
+def calculate_hit_rate(player_logs, stat_type, line):
+    """Calculate how often a player hits over a line."""
+    values = []
+    for log in player_logs:
+        val = parse_player_stat(log, stat_type)
+        if val is not None:
+            values.append(val)
+    
+    if not values:
+        return None, None, None, None
+    
+    over_count = sum(1 for v in values if v > line)
+    under_count = len(values) - over_count
+    over_pct = over_count / len(values)
+    under_pct = under_count / len(values)
+    avg = sum(values) / len(values)
+    
+    return {
+        "values": values,
+        "games": len(values),
+        "avg": round(avg, 1),
+        "over_count": over_count,
+        "under_count": under_count,
+        "over_pct": round(over_pct * 100, 1),
+        "under_pct": round(under_pct * 100, 1),
+        "over_fair_odds": prob_to_american(over_pct) if over_pct > 0 else None,
+        "under_fair_odds": prob_to_american(under_pct) if under_pct > 0 else None
+    }
+
+
+# ============================================
 # TOOL DEFINITIONS FOR CLAUDE
 # ============================================
 
@@ -1243,6 +1347,70 @@ Use this for ANY player prop question.""",
                 }
             },
             "required": ["team"]
+        }
+    },
+    {
+        "name": "calculate_prop_value",
+        "description": """Calculate implied probability and find value in player prop bets by analyzing historical data.
+        
+This tool analyzes a player's game logs to determine:
+- How often they've hit over/under a specific line
+- The TRUE probability based on historical data
+- Fair odds based on that probability  
+- Whether there's VALUE vs sportsbook odds
+
+STAT TYPES:
+- pass_yds: Passing yards
+- pass_tds: Passing touchdowns
+- completions: Pass completions
+- pass_attempts: Pass attempts
+- interceptions: Interceptions
+- rush_yds: Rushing yards
+- rush_att: Rush attempts
+- receptions: Receptions
+- rec_yds: Receiving yards
+- targets: Targets
+
+Use this when someone asks about prop value, implied probability, or whether a bet is good.""",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "player_name": {
+                    "type": "string",
+                    "description": "Player name (e.g., 'Drake Maye', 'JSN', 'Kenneth Walker')"
+                },
+                "stat_type": {
+                    "type": "string",
+                    "description": "Stat to analyze: pass_yds, pass_tds, completions, rush_yds, rush_att, receptions, rec_yds, targets"
+                },
+                "line": {
+                    "type": "number",
+                    "description": "The prop line to analyze (e.g., 249.5 for passing yards)"
+                },
+                "book_odds": {
+                    "type": "integer",
+                    "description": "Optional: Sportsbook odds to compare against (e.g., -110). If not provided, compares to standard -110."
+                }
+            },
+            "required": ["player_name", "stat_type", "line"]
+        }
+    },
+    {
+        "name": "find_value_props",
+        "description": "Scan all players to find props where historical data suggests value vs typical sportsbook odds. Returns props where the true hit rate significantly differs from implied odds.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "stat_type": {
+                    "type": "string",
+                    "description": "Stat to scan: pass_yds, pass_tds, rush_yds, receptions, rec_yds (or 'all' for comprehensive scan)"
+                },
+                "min_edge": {
+                    "type": "number",
+                    "description": "Minimum edge percentage to report (default: 10)"
+                }
+            },
+            "required": ["stat_type"]
         }
     }
 ]
@@ -1739,6 +1907,169 @@ def execute_tool(tool_name, tool_input):
         
         return result
     
+    elif tool_name == "calculate_prop_value":
+        player_name = tool_input.get("player_name", "").lower()
+        stat_type = tool_input.get("stat_type", "")
+        line = tool_input.get("line", 0)
+        book_odds = tool_input.get("book_odds", -110)
+        
+        # Find matching player in PLAYER_GAME_LOGS
+        matched_player = None
+        for name in PLAYER_GAME_LOGS.keys():
+            if player_name in name.lower() or name.lower() in player_name:
+                matched_player = name
+                break
+            # Handle nicknames
+            if "jsn" in player_name and "smith-njigba" in name.lower():
+                matched_player = name
+                break
+            if "kwiii" in player_name and "walker" in name.lower():
+                matched_player = name
+                break
+        
+        if not matched_player:
+            available = ", ".join(PLAYER_GAME_LOGS.keys())
+            return f"Player '{player_name}' not found. Available players: {available}"
+        
+        # Check if injured
+        is_injured = matched_player.lower() in INJURED_PLAYER_NAMES
+        
+        logs = PLAYER_GAME_LOGS[matched_player]
+        analysis = calculate_hit_rate(logs, stat_type, line)
+        
+        if analysis is None or analysis["games"] == 0:
+            return f"No {stat_type} data found for {matched_player}"
+        
+        # Calculate edge vs book odds
+        book_implied = american_to_prob(book_odds) * 100
+        over_edge = analysis["over_pct"] - book_implied
+        under_edge = analysis["under_pct"] - book_implied
+        
+        result = f"**{matched_player} - {stat_type.upper()} Prop Analysis**\n"
+        if is_injured:
+            result += "🚫 **WARNING: Player is OUT - Do not bet**\n"
+        result += f"Line: {line}\n\n"
+        
+        result += f"**HISTORICAL DATA ({analysis['games']} games):**\n"
+        result += f"• Season Average: {analysis['avg']}\n"
+        result += f"• Hit OVER {line}: {analysis['over_count']}/{analysis['games']} times ({analysis['over_pct']}%)\n"
+        result += f"• Hit UNDER {line}: {analysis['under_count']}/{analysis['games']} times ({analysis['under_pct']}%)\n\n"
+        
+        result += f"**TRUE ODDS (based on history):**\n"
+        result += f"• OVER fair odds: {format_american_odds(analysis['over_fair_odds'])}\n"
+        result += f"• UNDER fair odds: {format_american_odds(analysis['under_fair_odds'])}\n\n"
+        
+        result += f"**VALUE ANALYSIS vs {format_american_odds(book_odds)} ({book_implied:.1f}% implied):**\n"
+        
+        if over_edge > 5:
+            result += f"✅ **OVER has VALUE**: +{over_edge:.1f}% edge\n"
+            result += f"   True prob {analysis['over_pct']}% vs implied {book_implied:.1f}%\n"
+        elif over_edge < -5:
+            result += f"❌ OVER is BAD: {over_edge:.1f}% edge (avoid)\n"
+        else:
+            result += f"⚖️ OVER is FAIR: {over_edge:+.1f}% edge\n"
+        
+        if under_edge > 5:
+            result += f"✅ **UNDER has VALUE**: +{under_edge:.1f}% edge\n"
+            result += f"   True prob {analysis['under_pct']}% vs implied {book_implied:.1f}%\n"
+        elif under_edge < -5:
+            result += f"❌ UNDER is BAD: {under_edge:.1f}% edge (avoid)\n"
+        else:
+            result += f"⚖️ UNDER is FAIR: {under_edge:+.1f}% edge\n"
+        
+        # Show recent trend (last 5 games)
+        recent_values = analysis["values"][-5:] if len(analysis["values"]) >= 5 else analysis["values"]
+        recent_over = sum(1 for v in recent_values if v > line)
+        result += f"\n**RECENT TREND (last {len(recent_values)} games):**\n"
+        result += f"• Values: {recent_values}\n"
+        result += f"• Over {line}: {recent_over}/{len(recent_values)} times\n"
+        
+        return result
+    
+    elif tool_name == "find_value_props":
+        stat_type = tool_input.get("stat_type", "all").lower()
+        min_edge = tool_input.get("min_edge", 10)
+        
+        # Define common prop lines to check
+        prop_lines = {
+            "pass_yds": [199.5, 224.5, 249.5, 274.5, 299.5],
+            "pass_tds": [0.5, 1.5, 2.5],
+            "completions": [17.5, 19.5, 21.5, 23.5],
+            "rush_yds": [39.5, 49.5, 59.5, 69.5, 79.5],
+            "receptions": [3.5, 4.5, 5.5, 6.5, 7.5],
+            "rec_yds": [49.5, 59.5, 69.5, 79.5, 99.5],
+        }
+        
+        if stat_type == "all":
+            stats_to_check = list(prop_lines.keys())
+        else:
+            stats_to_check = [stat_type] if stat_type in prop_lines else []
+        
+        if not stats_to_check:
+            return f"Unknown stat type: {stat_type}. Available: {', '.join(prop_lines.keys())}"
+        
+        book_implied = american_to_prob(-110) * 100
+        value_props = []
+        
+        for player_name, logs in PLAYER_GAME_LOGS.items():
+            # Skip injured players
+            if player_name.lower() in INJURED_PLAYER_NAMES:
+                continue
+            
+            for stat in stats_to_check:
+                for line in prop_lines.get(stat, []):
+                    analysis = calculate_hit_rate(logs, stat, line)
+                    if analysis is None or analysis["games"] < 5:
+                        continue
+                    
+                    over_edge = analysis["over_pct"] - book_implied
+                    under_edge = analysis["under_pct"] - book_implied
+                    
+                    if over_edge >= min_edge:
+                        value_props.append({
+                            "player": player_name,
+                            "stat": stat,
+                            "line": line,
+                            "side": "OVER",
+                            "hit_rate": analysis["over_pct"],
+                            "edge": over_edge,
+                            "fair_odds": analysis["over_fair_odds"],
+                            "games": analysis["games"],
+                            "avg": analysis["avg"]
+                        })
+                    
+                    if under_edge >= min_edge:
+                        value_props.append({
+                            "player": player_name,
+                            "stat": stat,
+                            "line": line,
+                            "side": "UNDER",
+                            "hit_rate": analysis["under_pct"],
+                            "edge": under_edge,
+                            "fair_odds": analysis["under_fair_odds"],
+                            "games": analysis["games"],
+                            "avg": analysis["avg"]
+                        })
+        
+        # Sort by edge
+        value_props.sort(key=lambda x: x["edge"], reverse=True)
+        
+        result = f"**VALUE PROPS FINDER** (min edge: {min_edge}%)\n"
+        result += f"Comparing historical data vs -110 odds ({book_implied:.1f}% implied)\n\n"
+        
+        if not value_props:
+            result += "No significant value found at current lines.\n"
+            return result
+        
+        result += f"**Found {len(value_props)} value opportunities:**\n\n"
+        
+        for prop in value_props[:15]:  # Top 15
+            result += f"**{prop['player']}** - {prop['stat'].replace('_', ' ').title()}\n"
+            result += f"  {prop['side']} {prop['line']}: {prop['hit_rate']}% hit rate ({prop['edge']:+.1f}% edge)\n"
+            result += f"  Fair odds: {format_american_odds(prop['fair_odds'])} | Avg: {prop['avg']} | Games: {prop['games']}\n\n"
+        
+        return result
+    
     return f"Unknown tool: {tool_name}"
 
 
@@ -1826,6 +2157,8 @@ ALWAYS use these tools to get LIVE data:
 8. get_player_game_log - Game-by-game stats for any player (weekly breakdown)
 9. get_play_tendencies - Play-by-play analysis (run/pass %, red zone, by down, etc.)
 10. get_quarter_scoring - Quarter-by-quarter scoring (scoreless quarters, avg scoring by quarter/half)
+11. calculate_prop_value - Calculate implied probability & find VALUE in props vs historical data
+12. find_value_props - Scan all players to find props with positive expected value (+EV)
 
 ═══════════════════════════════════════════════════════════════
 RULES
@@ -1843,6 +2176,8 @@ RULES
 10. For weekly performance trends, use get_player_game_log
 11. For play-calling tendencies (run/pass splits, red zone), use get_play_tendencies
 12. For quarter/half scoring questions (scoreless quarters, when teams score), use get_quarter_scoring
+13. For prop value analysis (is this bet good? what's the edge?), use calculate_prop_value
+14. To find all value bets across players, use find_value_props
 
 You're a veteran analyst. Be specific, cite data, and help users find value!"""
 
