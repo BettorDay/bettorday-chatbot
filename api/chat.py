@@ -1170,7 +1170,7 @@ def calculate_hit_rate(player_logs, stat_type, line):
             values.append(val)
     
     if not values:
-        return None, None, None, None
+        return None
     
     over_count = sum(1 for v in values if v > line)
     under_count = len(values) - over_count
