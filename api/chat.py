@@ -1223,8 +1223,9 @@ class handler(BaseHTTPRequestHandler):
             # Handle tool use loop
             while response.stop_reason == "tool_use":
                 tool_results = []
-                assistant_content = response.content
                 
+                # Convert assistant content to serializable format
+                assistant_content_serializable = []
                 for block in response.content:
                     if block.type == "tool_use":
                         tool_result = execute_tool(block.name, block.input)
@@ -1233,8 +1234,19 @@ class handler(BaseHTTPRequestHandler):
                             "tool_use_id": block.id,
                             "content": tool_result
                         })
+                        assistant_content_serializable.append({
+                            "type": "tool_use",
+                            "id": block.id,
+                            "name": block.name,
+                            "input": block.input
+                        })
+                    elif hasattr(block, 'text'):
+                        assistant_content_serializable.append({
+                            "type": "text",
+                            "text": block.text
+                        })
                 
-                messages.append({"role": "assistant", "content": assistant_content})
+                messages.append({"role": "assistant", "content": assistant_content_serializable})
                 messages.append({"role": "user", "content": tool_results})
                 
                 response = client.messages.create(
@@ -1258,8 +1270,7 @@ class handler(BaseHTTPRequestHandler):
             
             self.wfile.write(json.dumps({
                 "success": True,
-                "response": final_response,
-                "conversation": messages + [{"role": "assistant", "content": final_response}]
+                "response": final_response
             }).encode())
             
         except Exception as e:
