@@ -1028,6 +1028,66 @@ PLAY_TENDENCIES = {
 
 
 # ============================================
+# TEAM GAME LOGS WITH QUARTER SCORING (FROM BIGDATABALL CSV)
+# ============================================
+
+TEAM_GAME_LOGS = {
+    "seahawks": [
+        {'wk': 1, 'venue': 'home', 'q1': 0, 'q2': 10, 'q3': 0, 'q4': 3, 'final': 13, 'first_half': 10, 'second_half': 3},
+        {'wk': 2, 'venue': 'road', 'q1': 7, 'q2': 0, 'q3': 7, 'q4': 17, 'final': 31, 'first_half': 7, 'second_half': 24},
+        {'wk': 3, 'venue': 'home', 'q1': 21, 'q2': 17, 'q3': 6, 'q4': 0, 'final': 44, 'first_half': 38, 'second_half': 6},
+        {'wk': 4, 'venue': 'road', 'q1': 7, 'q2': 7, 'q3': 3, 'q4': 6, 'final': 23, 'first_half': 14, 'second_half': 9},
+        {'wk': 5, 'venue': 'home', 'q1': 0, 'q2': 7, 'q3': 14, 'q4': 14, 'final': 35, 'first_half': 7, 'second_half': 28},
+        {'wk': 6, 'venue': 'road', 'q1': 0, 'q2': 13, 'q3': 7, 'q4': 0, 'final': 20, 'first_half': 13, 'second_half': 7},
+        {'wk': 7, 'venue': 'home', 'q1': 14, 'q2': 0, 'q3': 13, 'q4': 0, 'final': 27, 'first_half': 14, 'second_half': 13},
+        {'wk': 9, 'venue': 'road', 'q1': 7, 'q2': 24, 'q3': 7, 'q4': 0, 'final': 38, 'first_half': 31, 'second_half': 7},
+        {'wk': 10, 'venue': 'home', 'q1': 21, 'q2': 17, 'q3': 0, 'q4': 6, 'final': 44, 'first_half': 38, 'second_half': 6},
+        {'wk': 11, 'venue': 'road', 'q1': 3, 'q2': 6, 'q3': 3, 'q4': 7, 'final': 19, 'first_half': 9, 'second_half': 10},
+        {'wk': 12, 'venue': 'road', 'q1': 3, 'q2': 13, 'q3': 14, 'q4': 0, 'final': 30, 'first_half': 16, 'second_half': 14},
+        {'wk': 13, 'venue': 'home', 'q1': 0, 'q2': 13, 'q3': 6, 'q4': 7, 'final': 26, 'first_half': 13, 'second_half': 13},
+        {'wk': 14, 'venue': 'road', 'q1': 3, 'q2': 3, 'q3': 17, 'q4': 14, 'final': 37, 'first_half': 6, 'second_half': 31},
+        {'wk': 15, 'venue': 'home', 'q1': 3, 'q2': 3, 'q3': 3, 'q4': 9, 'final': 18, 'first_half': 6, 'second_half': 12},
+        {'wk': 16, 'venue': 'home', 'q1': 7, 'q2': 0, 'q3': 7, 'q4': 16, 'final': 38, 'first_half': 7, 'second_half': 23, 'ot': 8},
+        {'wk': 17, 'venue': 'road', 'q1': 3, 'q2': 0, 'q3': 14, 'q4': 10, 'final': 27, 'first_half': 3, 'second_half': 24},
+        {'wk': 18, 'venue': 'road', 'q1': 7, 'q2': 3, 'q3': 0, 'q4': 3, 'final': 13, 'first_half': 10, 'second_half': 3},
+        {'wk': 'DIV', 'venue': 'home', 'q1': 17, 'q2': 7, 'q3': 10, 'q4': 7, 'final': 41, 'first_half': 24, 'second_half': 17},
+        {'wk': 'CONF', 'venue': 'home', 'q1': 10, 'q2': 7, 'q3': 14, 'q4': 0, 'final': 31, 'first_half': 17, 'second_half': 14},
+    ],
+    "patriots": [
+        {'wk': 1, 'venue': 'home', 'q1': 7, 'q2': 3, 'q3': 0, 'q4': 3, 'final': 13, 'first_half': 10, 'second_half': 3},
+        {'wk': 2, 'venue': 'road', 'q1': 12, 'q2': 3, 'q3': 8, 'q4': 10, 'final': 33, 'first_half': 15, 'second_half': 18},
+        {'wk': 3, 'venue': 'home', 'q1': 0, 'q2': 7, 'q3': 0, 'q4': 7, 'final': 14, 'first_half': 7, 'second_half': 7},
+        {'wk': 4, 'venue': 'home', 'q1': 7, 'q2': 21, 'q3': 7, 'q4': 7, 'final': 42, 'first_half': 28, 'second_half': 14},
+        {'wk': 5, 'venue': 'road', 'q1': 3, 'q2': 3, 'q3': 7, 'q4': 10, 'final': 23, 'first_half': 6, 'second_half': 17},
+        {'wk': 6, 'venue': 'road', 'q1': 14, 'q2': 8, 'q3': 3, 'q4': 0, 'final': 25, 'first_half': 22, 'second_half': 3},
+        {'wk': 7, 'venue': 'road', 'q1': 3, 'q2': 14, 'q3': 14, 'q4': 0, 'final': 31, 'first_half': 17, 'second_half': 14},
+        {'wk': 8, 'venue': 'home', 'q1': 3, 'q2': 6, 'q3': 21, 'q4': 2, 'final': 32, 'first_half': 9, 'second_half': 23},
+        {'wk': 9, 'venue': 'home', 'q1': 7, 'q2': 14, 'q3': 3, 'q4': 0, 'final': 24, 'first_half': 21, 'second_half': 3},
+        {'wk': 10, 'venue': 'road', 'q1': 7, 'q2': 7, 'q3': 7, 'q4': 7, 'final': 28, 'first_half': 14, 'second_half': 14},
+        {'wk': 11, 'venue': 'home', 'q1': 0, 'q2': 14, 'q3': 7, 'q4': 6, 'final': 27, 'first_half': 14, 'second_half': 13},
+        {'wk': 12, 'venue': 'road', 'q1': 0, 'q2': 17, 'q3': 3, 'q4': 6, 'final': 26, 'first_half': 17, 'second_half': 9},
+        {'wk': 13, 'venue': 'home', 'q1': 17, 'q2': 13, 'q3': 0, 'q4': 3, 'final': 33, 'first_half': 30, 'second_half': 3},
+        {'wk': 15, 'venue': 'home', 'q1': 14, 'q2': 10, 'q3': 0, 'q4': 7, 'final': 31, 'first_half': 24, 'second_half': 7},
+        {'wk': 16, 'venue': 'road', 'q1': 0, 'q2': 10, 'q3': 3, 'q4': 15, 'final': 28, 'first_half': 10, 'second_half': 18},
+        {'wk': 17, 'venue': 'road', 'q1': 14, 'q2': 21, 'q3': 7, 'q4': 0, 'final': 42, 'first_half': 35, 'second_half': 7},
+        {'wk': 18, 'venue': 'home', 'q1': 14, 'q2': 3, 'q3': 14, 'q4': 7, 'final': 38, 'first_half': 17, 'second_half': 21},
+        {'wk': 'WC', 'venue': 'home', 'q1': 0, 'q2': 6, 'q3': 3, 'q4': 7, 'final': 16, 'first_half': 6, 'second_half': 10},
+        {'wk': 'DIV', 'venue': 'home', 'q1': 7, 'q2': 14, 'q3': 0, 'q4': 7, 'final': 28, 'first_half': 21, 'second_half': 7},
+        {'wk': 'CONF', 'venue': 'road', 'q1': 0, 'q2': 7, 'q3': 3, 'q4': 0, 'final': 10, 'first_half': 7, 'second_half': 3},
+    ]
+}
+
+# ============================================
+# QUARTER SCORING SUMMARY
+# ============================================
+
+QUARTER_SCORING = {
+    "seahawks": {"games": 19, "scoreless_q1": 4, "scoreless_q2": 4, "scoreless_q3": 3, "scoreless_q4": 6, "scoreless_first_half": 0, "scoreless_second_half": 0, "avg_q1": 7.0, "avg_q2": 7.9, "avg_q3": 7.6, "avg_q4": 6.3, "avg_first_half": 14.9, "avg_second_half": 13.9, "avg_total": 29.2},
+    "patriots": {"games": 20, "scoreless_q1": 6, "scoreless_q2": 0, "scoreless_q3": 5, "scoreless_q4": 5, "scoreless_first_half": 0, "scoreless_second_half": 0, "avg_q1": 6.5, "avg_q2": 10.1, "avg_q3": 5.5, "avg_q4": 5.2, "avg_first_half": 16.5, "avg_second_half": 10.7, "avg_total": 27.2}
+}
+
+
+# ============================================
 # TOOL DEFINITIONS FOR CLAUDE
 # ============================================
 
@@ -1166,6 +1226,20 @@ Use this for ANY player prop question.""",
                 "situation": {
                     "type": "string",
                     "description": "Optional specific situation: 'red_zone', 'goal_line', '1st_down', '3rd_down', 'trailing', 'leading'"
+                }
+            },
+            "required": ["team"]
+        }
+    },
+    {
+        "name": "get_quarter_scoring",
+        "description": "Get quarter-by-quarter scoring data for a team including: scoreless quarters count, average points per quarter, first half vs second half scoring, and game-by-game breakdown. Use this for questions about scoring patterns, scoreless quarters, half scoring, or when teams score most.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "team": {
+                    "type": "string",
+                    "description": "Team name: 'seahawks' or 'patriots' (or 'both' for comparison)"
                 }
             },
             "required": ["team"]
@@ -1609,6 +1683,62 @@ def execute_tool(tool_name, tool_input):
         
         return result
     
+    elif tool_name == "get_quarter_scoring":
+        team = tool_input.get("team", "").lower()
+        
+        if "both" in team or "compare" in team:
+            # Compare both teams
+            result = "**QUARTER SCORING COMPARISON**\n\n"
+            
+            for team_key in ["seahawks", "patriots"]:
+                team_name = "Seattle Seahawks" if team_key == "seahawks" else "New England Patriots"
+                q = QUARTER_SCORING[team_key]
+                logs = TEAM_GAME_LOGS[team_key]
+                
+                result += f"**{team_name} ({q['games']} games):**\n"
+                result += f"• Scoreless Q1: {q['scoreless_q1']} games ({round(q['scoreless_q1']/q['games']*100, 1)}%)\n"
+                result += f"• Scoreless Q2: {q['scoreless_q2']} games\n"
+                result += f"• Scoreless Q3: {q['scoreless_q3']} games\n"
+                result += f"• Scoreless Q4: {q['scoreless_q4']} games\n"
+                result += f"• Avg Q1: {q['avg_q1']} | Q2: {q['avg_q2']} | Q3: {q['avg_q3']} | Q4: {q['avg_q4']}\n"
+                result += f"• Avg 1st Half: {q['avg_first_half']} | 2nd Half: {q['avg_second_half']}\n\n"
+            
+            return result
+        
+        if "seahawk" in team or "seattle" in team:
+            team_key = "seahawks"
+        elif "patriot" in team or "new england" in team:
+            team_key = "patriots"
+        else:
+            return "Please specify 'seahawks', 'patriots', or 'both'"
+        
+        team_name = "Seattle Seahawks" if team_key == "seahawks" else "New England Patriots"
+        q = QUARTER_SCORING[team_key]
+        logs = TEAM_GAME_LOGS[team_key]
+        
+        result = f"**{team_name} - Quarter-by-Quarter Scoring ({q['games']} games)**\n\n"
+        
+        result += "**SCORELESS QUARTERS:**\n"
+        result += f"• Q1: {q['scoreless_q1']} games ({round(q['scoreless_q1']/q['games']*100, 1)}%)\n"
+        result += f"• Q2: {q['scoreless_q2']} games ({round(q['scoreless_q2']/q['games']*100, 1)}%)\n"
+        result += f"• Q3: {q['scoreless_q3']} games ({round(q['scoreless_q3']/q['games']*100, 1)}%)\n"
+        result += f"• Q4: {q['scoreless_q4']} games ({round(q['scoreless_q4']/q['games']*100, 1)}%)\n"
+        result += f"• Scoreless 1st Half: {q['scoreless_first_half']} games\n"
+        result += f"• Scoreless 2nd Half: {q['scoreless_second_half']} games\n\n"
+        
+        result += "**AVERAGE SCORING:**\n"
+        result += f"• Q1: {q['avg_q1']} pts | Q2: {q['avg_q2']} pts | Q3: {q['avg_q3']} pts | Q4: {q['avg_q4']} pts\n"
+        result += f"• 1st Half: {q['avg_first_half']} pts | 2nd Half: {q['avg_second_half']} pts\n"
+        result += f"• Total: {q['avg_total']} pts/game\n\n"
+        
+        result += "**GAME-BY-GAME BREAKDOWN:**\n"
+        for g in logs:
+            wk = g['wk']
+            venue = "vs" if g['venue'] == 'home' else "@"
+            result += f"Wk {wk}: Q1={g['q1']}, Q2={g['q2']}, Q3={g['q3']}, Q4={g['q4']} (Final: {g['final']})\n"
+        
+        return result
+    
     return f"Unknown tool: {tool_name}"
 
 
@@ -1695,6 +1825,7 @@ ALWAYS use these tools to get LIVE data:
 7. get_betting_trends - Historical Super Bowl trends
 8. get_player_game_log - Game-by-game stats for any player (weekly breakdown)
 9. get_play_tendencies - Play-by-play analysis (run/pass %, red zone, by down, etc.)
+10. get_quarter_scoring - Quarter-by-quarter scoring (scoreless quarters, avg scoring by quarter/half)
 
 ═══════════════════════════════════════════════════════════════
 RULES
@@ -1711,6 +1842,7 @@ RULES
 9. For line shopping, use compare_lines with the specific player and market
 10. For weekly performance trends, use get_player_game_log
 11. For play-calling tendencies (run/pass splits, red zone), use get_play_tendencies
+12. For quarter/half scoring questions (scoreless quarters, when teams score), use get_quarter_scoring
 
 You're a veteran analyst. Be specific, cite data, and help users find value!"""
 
