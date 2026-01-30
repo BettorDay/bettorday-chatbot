@@ -92,6 +92,14 @@ for category, markets in PLAYER_PROP_MARKETS.items():
 GAME_MARKETS = ["h2h", "spreads", "totals"]  # Moneyline, Spread, Over/Under
 
 # ============================================
+# SUPER BOWL EVENT ID (hardcoded for reliability)
+# ============================================
+SUPER_BOWL_EVENT_ID = "b64e3587d7a4cf01a568e7150a2a1aec"
+SUPER_BOWL_HOME_TEAM = "New England Patriots"
+SUPER_BOWL_AWAY_TEAM = "Seattle Seahawks"
+SUPER_BOWL_DATE = "2026-02-08T23:30:00Z"
+
+# ============================================
 # INJURED PLAYERS - EXCLUDE FROM BET RECOMMENDATIONS
 # ============================================
 INJURED_PLAYERS = [
@@ -108,27 +116,49 @@ def get_nfl_events():
     """Get all current NFL events including Super Bowl."""
     try:
         url = f"{ODDS_API_BASE}/sports/americanfootball_nfl/events"
-        response = requests.get(url, params={"apiKey": ODDS_API_KEY}, timeout=15)
+        response = requests.get(
+            url, 
+            params={"apiKey": ODDS_API_KEY}, 
+            timeout=30,
+            headers={"Accept": "application/json"}
+        )
+        print(f"[DEBUG] NFL Events API Status: {response.status_code}")
         if response.status_code == 200:
             return response.json()
-        return {"error": f"Status {response.status_code}: {response.text[:200]}"}
+        elif response.status_code == 401:
+            return {"error": "Invalid API key. Check ODDS_API_KEY environment variable."}
+        elif response.status_code == 429:
+            return {"error": "API rate limit exceeded. Try again later."}
+        return {"error": f"API returned status {response.status_code}: {response.text[:200]}"}
+    except requests.exceptions.Timeout:
+        return {"error": "Connection timed out. The Odds API may be slow or unavailable."}
+    except requests.exceptions.ConnectionError as e:
+        return {"error": f"Connection error: {str(e)}. Check your network connection."}
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": f"Unexpected error: {str(e)}"}
 
 
 def get_super_bowl_event():
     """Find the Super Bowl event (Seahawks vs Patriots)."""
+    # Try to fetch dynamically first
     events = get_nfl_events()
-    if isinstance(events, dict) and "error" in events:
-        return None
     
-    for event in events:
-        teams = [event.get("home_team", "").lower(), event.get("away_team", "").lower()]
-        team_str = " ".join(teams)
-        if ("seattle" in team_str or "seahawk" in team_str) and \
-           ("new england" in team_str or "patriot" in team_str):
-            return event
-    return None
+    if isinstance(events, list):
+        for event in events:
+            teams = [event.get("home_team", "").lower(), event.get("away_team", "").lower()]
+            team_str = " ".join(teams)
+            if ("seattle" in team_str or "seahawk" in team_str) and \
+               ("new england" in team_str or "patriot" in team_str):
+                return event
+    
+    # Fallback to hardcoded event ID if API fails
+    print("[DEBUG] Using hardcoded Super Bowl event ID")
+    return {
+        "id": SUPER_BOWL_EVENT_ID,
+        "home_team": SUPER_BOWL_HOME_TEAM,
+        "away_team": SUPER_BOWL_AWAY_TEAM,
+        "commence_time": SUPER_BOWL_DATE
+    }
 
 
 def get_live_game_odds(event_id=None):
@@ -150,7 +180,8 @@ def get_live_game_odds(event_id=None):
                     "markets": ",".join(GAME_MARKETS),
                     "oddsFormat": "american"
                 }
-                response = requests.get(url, params=params, timeout=15)
+                response = requests.get(url, params=params, timeout=30)
+                print(f"[DEBUG] NFL Odds API Status: {response.status_code}")
                 if response.status_code == 200:
                     return response.json()
                 return {"error": f"Status {response.status_code}"}
@@ -163,11 +194,20 @@ def get_live_game_odds(event_id=None):
             "markets": ",".join(GAME_MARKETS),
             "oddsFormat": "american"
         }
-        response = requests.get(url, params=params, timeout=15)
+        response = requests.get(url, params=params, timeout=30)
+        print(f"[DEBUG] Event Odds API Status: {response.status_code}")
         
         if response.status_code == 200:
             return response.json()
+        elif response.status_code == 401:
+            return {"error": "Invalid API key"}
+        elif response.status_code == 404:
+            return {"error": f"Event {event_id} not found"}
         return {"error": f"Status {response.status_code}: {response.text[:200]}"}
+    except requests.exceptions.Timeout:
+        return {"error": "Connection timed out"}
+    except requests.exceptions.ConnectionError as e:
+        return {"error": f"Connection error: {str(e)}"}
     except Exception as e:
         return {"error": str(e)}
 
@@ -192,6 +232,7 @@ def get_all_player_props(event_id, markets=None, category=None):
             markets = ALL_PLAYER_PROP_MARKETS
     
     all_props = {}
+    errors = []
     
     for market in markets:
         try:
@@ -202,7 +243,7 @@ def get_all_player_props(event_id, markets=None, category=None):
                 "markets": market,
                 "oddsFormat": "american"
             }
-            response = requests.get(url, params=params, timeout=15)
+            response = requests.get(url, params=params, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
@@ -210,9 +251,24 @@ def get_all_player_props(event_id, markets=None, category=None):
                 
                 if bookmakers:
                     all_props[market] = bookmakers
+                    print(f"[DEBUG] Found {len(bookmakers)} books for {market}")
+            elif response.status_code == 401:
+                errors.append(f"Invalid API key for {market}")
+            elif response.status_code == 404:
+                # Market not available for this event - this is normal
+                pass
+            else:
+                errors.append(f"{market}: status {response.status_code}")
                     
+        except requests.exceptions.Timeout:
+            errors.append(f"{market}: timeout")
+        except requests.exceptions.ConnectionError:
+            errors.append(f"{market}: connection error")
         except Exception as e:
-            continue
+            errors.append(f"{market}: {str(e)}")
+    
+    if errors and not all_props:
+        print(f"[DEBUG] Prop fetch errors: {errors}")
     
     return all_props
 
@@ -1100,6 +1156,48 @@ You're a veteran analyst. Be specific, cite data, and help users find value!"""
 # ============================================
 
 class handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        """Test endpoint - check API connectivity"""
+        try:
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            # Test The Odds API connection
+            test_result = {
+                "status": "ok",
+                "message": "BettorDay API is running",
+                "odds_api_key_set": bool(ODDS_API_KEY and ODDS_API_KEY != "YOUR_ODDS_API_KEY"),
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            # Try to fetch events
+            events = get_nfl_events()
+            if isinstance(events, dict) and "error" in events:
+                test_result["odds_api_status"] = "error"
+                test_result["odds_api_error"] = events["error"]
+            elif isinstance(events, list):
+                test_result["odds_api_status"] = "connected"
+                test_result["nfl_events_count"] = len(events)
+                
+                # Try to find Super Bowl
+                sb = get_super_bowl_event()
+                if sb:
+                    test_result["super_bowl_found"] = True
+                    test_result["super_bowl_id"] = sb.get("id")
+                    test_result["matchup"] = f"{sb.get('away_team')} @ {sb.get('home_team')}"
+                else:
+                    test_result["super_bowl_found"] = False
+            
+            self.wfile.write(json.dumps(test_result, indent=2).encode())
+            
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
+    
     def do_POST(self):
         try:
             content_length = int(self.headers['Content-Length'])
@@ -1159,6 +1257,7 @@ class handler(BaseHTTPRequestHandler):
             self.end_headers()
             
             self.wfile.write(json.dumps({
+                "success": True,
                 "response": final_response,
                 "conversation": messages + [{"role": "assistant", "content": final_response}]
             }).encode())
@@ -1166,8 +1265,12 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             self.send_response(500)
             self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
-            self.wfile.write(json.dumps({"error": str(e)}).encode())
+            self.wfile.write(json.dumps({
+                "success": False,
+                "error": str(e)
+            }).encode())
     
     def do_OPTIONS(self):
         self.send_response(200)
