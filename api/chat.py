@@ -149,8 +149,19 @@ TOOLS = [
     },
     {
         "name": "get_live_odds",
-        "description": "Fetch current Super Bowl odds from sportsbooks.",
+        "description": "Fetch current Super Bowl odds from ALL sportsbooks (spreads, totals, moneylines).",
         "input_schema": {"type": "object", "properties": {}, "required": []}
+    },
+    {
+        "name": "get_player_prop_odds",
+        "description": "Fetch LIVE player prop odds from ALL sportsbooks for Patriots vs Seahawks. Returns odds for TD scorers, passing/rushing/receiving yards, receptions, and more. Automatically excludes Zach Charbonnet (not playing).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "market": {"type": "string", "description": "'all' for all props, 'td' for touchdown props, 'passing' for QB props, 'rushing' for RB rushing props, 'receiving' for WR/TE props, or specific market like 'player_anytime_td'"}
+            },
+            "required": []
+        }
     },
     {
         "name": "search_players",
@@ -315,12 +326,17 @@ def execute_tool(tool_name, tool_input):
     
     elif tool_name == "get_player_props":
         prop_type = tool_input.get("prop_type", "all")
-        result = f"**PLAYER PROP BASELINES**\n\n"
+        
+        # EXCLUDED PLAYERS - Not playing
+        EXCLUDED_PLAYERS = ["Zach Charbonnet"]
+        
+        result = f"**PLAYER PROP BASELINES**\n"
+        result += f"⚠️ EXCLUDED: Zach Charbonnet (NOT PLAYING)\n\n"
         
         if prop_type in ["anytime_td", "all"]:
             result += "**ANYTIME TD (by hit rate):**\n"
             td_players = [(n, d.get('td_hit_rate', 0), d.get('anytime_td_total', 0), d['games'], d['team']) 
-                          for n, d in ALL_PLAYERS.items() if d.get('anytime_td_total', 0) > 0]
+                          for n, d in ALL_PLAYERS.items() if d.get('anytime_td_total', 0) > 0 and n not in EXCLUDED_PLAYERS]
             td_players.sort(key=lambda x: x[1], reverse=True)
             for name, rate, tds, games, team in td_players[:12]:
                 result += f"  {name} ({team}): {rate}% ({tds} TDs in {games}g)\n"
@@ -328,7 +344,7 @@ def execute_tool(tool_name, tool_input):
         
         if prop_type in ["rec_yds", "all"]:
             result += "**RECEIVING YARDS (avg/game):**\n"
-            rec = [(n, d.get('rec_yds_avg', 0), d['team']) for n, d in ALL_PLAYERS.items() if d.get('rec_yds_avg', 0) > 15]
+            rec = [(n, d.get('rec_yds_avg', 0), d['team']) for n, d in ALL_PLAYERS.items() if d.get('rec_yds_avg', 0) > 15 and n not in EXCLUDED_PLAYERS]
             rec.sort(key=lambda x: x[1], reverse=True)
             for name, avg, team in rec[:10]:
                 result += f"  {name} ({team}): {avg} yds/g\n"
@@ -336,7 +352,7 @@ def execute_tool(tool_name, tool_input):
         
         if prop_type in ["rush_yds", "all"]:
             result += "**RUSHING YARDS (avg/game):**\n"
-            rush = [(n, d.get('rush_yds_avg', 0), d['team']) for n, d in ALL_PLAYERS.items() if d.get('rush_yds_avg', 0) > 15]
+            rush = [(n, d.get('rush_yds_avg', 0), d['team']) for n, d in ALL_PLAYERS.items() if d.get('rush_yds_avg', 0) > 15 and n not in EXCLUDED_PLAYERS]
             rush.sort(key=lambda x: x[1], reverse=True)
             for name, avg, team in rush[:8]:
                 result += f"  {name} ({team}): {avg} yds/g\n"
@@ -344,7 +360,7 @@ def execute_tool(tool_name, tool_input):
         
         if prop_type in ["receptions", "all"]:
             result += "**RECEPTIONS (avg/game):**\n"
-            recs = [(n, d.get('rec_avg', 0), d.get('targets_avg', 0), d['team']) for n, d in ALL_PLAYERS.items() if d.get('rec_avg', 0) > 2]
+            recs = [(n, d.get('rec_avg', 0), d.get('targets_avg', 0), d['team']) for n, d in ALL_PLAYERS.items() if d.get('rec_avg', 0) > 2 and n not in EXCLUDED_PLAYERS]
             recs.sort(key=lambda x: x[1], reverse=True)
             for name, rec_avg, tgt_avg, team in recs[:10]:
                 result += f"  {name} ({team}): {rec_avg} rec/g ({tgt_avg} tgt/g)\n"
@@ -402,30 +418,135 @@ def execute_tool(tool_name, tool_input):
                 for game in resp.json():
                     if "Seattle" in str(game) or "Patriot" in str(game):
                         result = f"**{game['away_team']} @ {game['home_team']}**\n"
-                        for book in game.get("bookmakers", [])[:3]:
-                            result += f"\n{book['title']}:\n"
+                        result += f"Event ID: {game.get('id', 'N/A')}\n\n"
+                        # Show ALL sportsbooks
+                        for book in game.get("bookmakers", []):
+                            result += f"\n**{book['title']}:**\n"
                             for mkt in book.get("markets", []):
+                                result += f"  {mkt['key'].upper()}:\n"
                                 for o in mkt["outcomes"]:
                                     pt = o.get("point", "")
                                     pr = f"+{o['price']}" if o['price'] >= 0 else str(o['price'])
-                                    result += f"  {o['name']} {pt} ({pr})\n"
+                                    result += f"    {o['name']} {pt} ({pr})\n"
                         return result
-        except:
-            pass
+        except Exception as e:
+            return f"Error fetching odds: {str(e)}"
         return f"Line: {SUPER_BOWL_TRENDS['game_info']['spread']}, Total: {SUPER_BOWL_TRENDS['game_info']['total']}"
+    
+    elif tool_name == "get_player_prop_odds":
+        prop_market = tool_input.get("market", "all")
+        
+        # EXCLUDED PLAYERS - Not playing or no props available
+        EXCLUDED_PLAYERS = ["zach charbonnet", "charbonnet"]
+        
+        try:
+            # First, get the event ID for SEA vs NE
+            url = f"{ODDS_API_BASE}/sports/americanfootball_nfl/odds"
+            params = {"apiKey": ODDS_API_KEY, "regions": "us", "markets": "h2h", "oddsFormat": "american"}
+            resp = requests.get(url, params=params, timeout=10)
+            event_id = None
+            if resp.status_code == 200:
+                for game in resp.json():
+                    if "Seattle" in str(game) or "Patriot" in str(game):
+                        event_id = game.get("id")
+                        break
+            
+            if not event_id:
+                return "Could not find Patriots vs Seahawks game."
+            
+            # Player prop markets available
+            all_markets = [
+                "player_anytime_td",
+                "player_pass_yds", "player_pass_tds", "player_pass_attempts", "player_pass_completions", "player_interceptions",
+                "player_rush_yds", "player_rush_attempts", "player_rush_longest",
+                "player_receptions", "player_reception_yds", "player_reception_longest",
+                "player_kicking_points", "player_field_goals",
+                "player_tackles_assists", "player_sacks",
+                "player_1st_td", "player_last_td"
+            ]
+            
+            # Filter markets based on request
+            if prop_market == "all":
+                markets_to_fetch = all_markets
+            elif prop_market == "td":
+                markets_to_fetch = ["player_anytime_td", "player_1st_td", "player_last_td"]
+            elif prop_market == "passing":
+                markets_to_fetch = ["player_pass_yds", "player_pass_tds", "player_pass_attempts", "player_pass_completions", "player_interceptions"]
+            elif prop_market == "rushing":
+                markets_to_fetch = ["player_rush_yds", "player_rush_attempts", "player_rush_longest"]
+            elif prop_market == "receiving":
+                markets_to_fetch = ["player_receptions", "player_reception_yds", "player_reception_longest"]
+            else:
+                markets_to_fetch = [prop_market]
+            
+            result = f"**PLAYER PROPS - Patriots vs Seahawks**\n"
+            result += f"⚠️ EXCLUDED: Zach Charbonnet (NOT PLAYING - No props available)\n\n"
+            
+            # Fetch props from event endpoint
+            props_url = f"{ODDS_API_BASE}/sports/americanfootball_nfl/events/{event_id}/odds"
+            props_params = {
+                "apiKey": ODDS_API_KEY,
+                "regions": "us",
+                "markets": ",".join(markets_to_fetch),
+                "oddsFormat": "american"
+            }
+            props_resp = requests.get(props_url, params=props_params, timeout=15)
+            
+            if props_resp.status_code == 200:
+                props_data = props_resp.json()
+                bookmakers = props_data.get("bookmakers", [])
+                
+                if not bookmakers:
+                    return result + "No player props currently available from sportsbooks."
+                
+                # Organize by market type, then by player
+                for book in bookmakers:
+                    result += f"\n**═══ {book['title']} ═══**\n"
+                    for mkt in book.get("markets", []):
+                        market_name = mkt['key'].replace("player_", "").replace("_", " ").title()
+                        result += f"\n**{market_name}:**\n"
+                        for outcome in mkt.get("outcomes", []):
+                            player_name = outcome.get("description", outcome.get("name", "Unknown"))
+                            
+                            # Skip excluded players
+                            if any(excl in player_name.lower() for excl in EXCLUDED_PLAYERS):
+                                continue
+                            
+                            name = outcome.get("name", "")
+                            point = outcome.get("point", "")
+                            price = outcome['price']
+                            price_str = f"+{price}" if price >= 0 else str(price)
+                            
+                            if point:
+                                result += f"  {player_name}: {name} {point} ({price_str})\n"
+                            else:
+                                result += f"  {player_name}: {name} ({price_str})\n"
+                
+                return result
+            else:
+                return f"Error fetching props: Status {props_resp.status_code}"
+                
+        except Exception as e:
+            return f"Error fetching player props: {str(e)}"
     
     elif tool_name == "search_players":
         query = tool_input.get("query", "").lower()
+        
+        # EXCLUDED PLAYERS - Not playing
+        EXCLUDED_PLAYERS = ["Zach Charbonnet"]
+        
         matches = [(n, d) for n, d in ALL_PLAYERS.items() if query in n.lower() or query.upper() == d.get("team")]
         if not matches:
             return f"No players found for '{query}'."
         result = f"**{len(matches)} players matching '{query}':**\n"
         for name, data in matches[:20]:
+            # Flag excluded players
+            excluded_tag = " ⚠️ NOT PLAYING - EXCLUDE FROM BETS" if name in EXCLUDED_PLAYERS else ""
             stats = []
             if data.get("rec_yds_avg"): stats.append(f"{data['rec_yds_avg']} rec yds/g")
             if data.get("rush_yds_avg"): stats.append(f"{data['rush_yds_avg']} rush yds/g")
             if data.get("anytime_td_total"): stats.append(f"{data['anytime_td_total']} TDs")
-            result += f"• {name} ({data['team']}): {', '.join(stats) if stats else 'Limited stats'}\n"
+            result += f"• {name} ({data['team']}){excluded_tag}: {', '.join(stats) if stats else 'Limited stats'}\n"
         return result
     
     return "Tool not found"
@@ -438,6 +559,13 @@ def build_system_prompt():
     return """You are the BettorDay AI for Super Bowl 60: Seattle Seahawks vs New England Patriots.
 
 ═══════════════════════════════════════════════════════════════
+⚠️ CRITICAL EXCLUSION
+═══════════════════════════════════════════════════════════════
+
+**ZACH CHARBONNET IS NOT PLAYING** - Do NOT recommend any bets involving Zach Charbonnet.
+He has NO prop bets listed at any sportsbook. Exclude him from ALL bet recommendations.
+
+═══════════════════════════════════════════════════════════════
 YOUR DATA (COMPREHENSIVE)
 ═══════════════════════════════════════════════════════════════
 
@@ -445,6 +573,7 @@ YOUR DATA (COMPREHENSIVE)
 • **2,314 Play-by-Play records** - Every run/pass with full player names
 • **Player Props** - Anytime TD hit rates, yards averages, targets
 • **Betting Trends** - Historical Super Bowl angles
+• **LIVE ODDS** - Real-time odds from ALL sportsbooks via The Odds API
 
 ═══════════════════════════════════════════════════════════════
 TOOLS
@@ -455,10 +584,12 @@ TOOLS
   - "JSN catches on 1st down" → query_player_pbp(player="JSN", down=1, play_type="pass")
   - "Walker red zone carries" → query_player_pbp(player="Walker", red_zone=true, play_type="rush")
   - "Barner targets in Q4" → query_player_pbp(player="Barner", quarter=4, play_type="pass")
-• **get_player_props** - Anytime TD, yards, receptions baselines
+• **get_player_props** - Anytime TD, yards, receptions baselines from our data
+• **get_player_prop_odds** - 🆕 LIVE player prop odds from ALL sportsbooks
+  - Use market="all" for everything, "td" for touchdowns, "passing"/"rushing"/"receiving" for specific
 • **get_team_tendencies** - Team run/pass splits by situation
 • **get_betting_trends** - Historical SB angles
-• **get_live_odds** - Current lines
+• **get_live_odds** - Current game lines from ALL sportsbooks
 • **search_players** - Find players by name/team
 
 ═══════════════════════════════════════════════════════════════
@@ -467,6 +598,14 @@ CRITICAL: USE query_player_pbp FOR SITUATIONAL PLAYER QUESTIONS
 
 When asked about a player's stats in specific situations (down, red zone, quarter, etc.), 
 ALWAYS use query_player_pbp - you have the full play-by-play data to answer these!
+
+═══════════════════════════════════════════════════════════════
+BET RECOMMENDATION RULES
+═══════════════════════════════════════════════════════════════
+
+1. NEVER recommend bets on Zach Charbonnet - he is OUT and has no props
+2. Always check live odds before making prop recommendations
+3. Cross-reference our baseline data with live sportsbook odds
 
 **Line:** SEA -4.5 | **Total:** 45.5"""
 
