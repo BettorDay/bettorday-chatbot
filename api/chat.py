@@ -20,7 +20,7 @@ from datetime import datetime
 # ============================================
 # API CONFIGURATION
 # ============================================
-ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "05985e695391302ae3b07e436ab47cbe")
+ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "7df74fcc29ab8c61a76ea382f7865283")
 ODDS_API_BASE = "https://api.the-odds-api.com/v4"
 
 # All US Sportsbooks to query
